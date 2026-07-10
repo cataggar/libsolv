@@ -1,0 +1,14 @@
+.{
+    .name = .libsolv,
+    .version = "0.7.39",
+    .fingerprint = 0x575cf09d7a73833e,
+    .minimum_zig_version = "0.16.0",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "ext",
+        "tools",
+        "LICENSE.BSD",
+    },
+}
