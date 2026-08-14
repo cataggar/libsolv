@@ -8,6 +8,7 @@
         "build.zig.zon",
         "src",
         "ext",
+        "test/zig",
         "tools",
         "LICENSE.BSD",
     },
