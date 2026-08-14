@@ -4,13 +4,13 @@ const std = @import("std");
 // and ext/CMakeLists.txt so that consumers see the same public API surface
 // as the CMake build.
 const solv_public_headers = [_][]const u8{
-    "bitmap.h",     "evr.h",        "hash.h",      "policy.h",
-    "poolarch.h",   "poolvendor.h", "pool.h",      "poolid.h",
-    "pooltypes.h",  "queue.h",      "solvable.h",  "solver.h",
-    "solverdebug.h", "repo.h",      "repodata.h",  "repo_solv.h",
-    "repo_write.h", "util.h",       "selection.h", "strpool.h",
-    "dirpool.h",    "knownid.h",    "transaction.h", "rules.h",
-    "problems.h",   "chksum.h",     "dataiterator.h",
+    "bitmap.h",      "evr.h",        "hash.h",         "policy.h",
+    "poolarch.h",    "poolvendor.h", "pool.h",         "poolid.h",
+    "pooltypes.h",   "queue.h",      "solvable.h",     "solver.h",
+    "solverdebug.h", "repo.h",       "repodata.h",     "repo_solv.h",
+    "repo_write.h",  "util.h",       "selection.h",    "strpool.h",
+    "dirpool.h",     "knownid.h",    "transaction.h",  "rules.h",
+    "problems.h",    "chksum.h",     "dataiterator.h",
 };
 
 const solvext_public_headers = [_][]const u8{
@@ -20,17 +20,17 @@ const solvext_public_headers = [_][]const u8{
 // Core libsolv sources, matching libsolv_SRCS in src/CMakeLists.txt
 // (excluding the optional conda.c / apk.c, which are added conditionally).
 const solv_base_sources = [_][]const u8{
-    "bitmap.c",           "poolarch.c",    "poolvendor.c", "poolid.c",
-    "pooldep.c",          "poollang.c",    "poolwhatprovides.c", "pool.c",
-    "strpool.c",          "dirpool.c",     "solver.c",     "solverdebug.c",
-    "repo_solv.c",        "repo_write.c",  "evr.c",        "queue.c",
-    "repo.c",             "repodata.c",    "repopage.c",   "util.c",
-    "policy.c",           "solvable.c",    "transaction.c", "order.c",
-    "rules.c",            "problems.c",    "linkedpkg.c",  "cplxdeps.c",
-    "chksum.c",           "chksum_impl.c", "md5.c",        "sha1.c",
-    "sha2.c",             "solvversion.c", "selection.c",  "fileprovides.c",
-    "diskusage.c",        "suse.c",        "solver_util.c", "cleandeps.c",
-    "userinstalled.c",    "filelistfilter.c", "decision.c",
+    "bitmap.c",        "poolarch.c",       "poolvendor.c",       "poolid.c",
+    "pooldep.c",       "poollang.c",       "poolwhatprovides.c", "pool.c",
+    "strpool.c",       "dirpool.c",        "solver.c",           "solverdebug.c",
+    "repo_solv.c",     "repo_write.c",     "evr.c",              "queue.c",
+    "repo.c",          "repodata.c",       "repopage.c",         "util.c",
+    "policy.c",        "solvable.c",       "transaction.c",      "order.c",
+    "rules.c",         "problems.c",       "linkedpkg.c",        "cplxdeps.c",
+    "chksum.c",        "chksum_impl.c",    "md5.c",              "sha1.c",
+    "sha2.c",          "solvversion.c",    "selection.c",        "fileprovides.c",
+    "diskusage.c",     "suse.c",           "solver_util.c",      "cleandeps.c",
+    "userinstalled.c", "filelistfilter.c", "decision.c",
 };
 
 // Base libsolvext sources that don't depend on any optional repo format,
@@ -49,10 +49,11 @@ pub fn build(b: *std.Build) void {
 
     const enable_conda = b.option(bool, "conda", "Enable conda dependency support (src/conda.c)") orelse false;
     const multi_semantics = b.option(bool, "multi-semantics", "Enable support for multiple distribution types (src/apk.c)") orelse enable_conda;
+    const enable_debian = b.option(bool, "debian", "Build with Debian EVR/dependency semantics and repository support") orelse false;
 
     const with_ext = b.option(bool, "ext", "Build libsolvext (compression + testcase helpers)") orelse true;
     const ext_zlib = b.option(bool, "zlib", "libsolvext: enable zlib (.gz) compression support") orelse true;
-    const ext_lzma = b.option(bool, "lzma", "libsolvext: enable lzma/xz compression support") orelse false;
+    const ext_lzma = b.option(bool, "lzma", "libsolvext: enable lzma/xz compression support") orelse enable_debian;
     const ext_bzip2 = b.option(bool, "bzip2", "libsolvext: enable bzip2 compression support") orelse false;
     const ext_zstd = b.option(bool, "zstd", "libsolvext: enable zstd compression support") orelse false;
 
@@ -92,7 +93,7 @@ pub fn build(b: *std.Build) void {
         .LIBSOLVEXT_FEATURE_SUSEREPO = false,
         .LIBSOLVEXT_FEATURE_COMPS = false,
         .LIBSOLVEXT_FEATURE_HELIXREPO = false,
-        .LIBSOLVEXT_FEATURE_DEBIAN = false,
+        .LIBSOLVEXT_FEATURE_DEBIAN = with_ext and enable_debian,
         .LIBSOLVEXT_FEATURE_ARCHREPO = false,
         .LIBSOLVEXT_FEATURE_HAIKU = false,
         .LIBSOLVEXT_FEATURE_APPDATA = false,
@@ -122,6 +123,7 @@ pub fn build(b: *std.Build) void {
     if (words_bigendian) solv_flags.append(b.allocator, "-DWORDS_BIGENDIAN=1") catch @panic("OOM");
     if (enable_conda) solv_flags.append(b.allocator, "-DENABLE_CONDA=1") catch @panic("OOM");
     if (multi_semantics) solv_flags.append(b.allocator, "-DMULTI_SEMANTICS=1") catch @panic("OOM");
+    if (enable_debian) solv_flags.append(b.allocator, "-DDEBIAN=1") catch @panic("OOM");
 
     var solv_srcs: std.ArrayList([]const u8) = .empty;
     solv_srcs.appendSlice(b.allocator, &solv_base_sources) catch @panic("OOM");
@@ -149,6 +151,7 @@ pub fn build(b: *std.Build) void {
     // ---------------------------------------------------------------
     // libsolvext (optional): compression backends + testcase helpers
     // ---------------------------------------------------------------
+    var ext_lib: ?*std.Build.Step.Compile = null;
     if (with_ext) {
         const ext_mod = b.createModule(.{
             .target = target,
@@ -168,10 +171,14 @@ pub fn build(b: *std.Build) void {
         if (ext_lzma) ext_flags.append(b.allocator, "-DENABLE_LZMA_COMPRESSION=1") catch @panic("OOM");
         if (ext_bzip2) ext_flags.append(b.allocator, "-DENABLE_BZIP2_COMPRESSION=1") catch @panic("OOM");
         if (ext_zstd) ext_flags.append(b.allocator, "-DENABLE_ZSTD_COMPRESSION=1") catch @panic("OOM");
+        if (enable_debian) ext_flags.append(b.allocator, "-DENABLE_DEBIAN=1") catch @panic("OOM");
 
+        var ext_srcs: std.ArrayList([]const u8) = .empty;
+        ext_srcs.appendSlice(b.allocator, &solvext_base_sources) catch @panic("OOM");
+        if (enable_debian) ext_srcs.append(b.allocator, "repo_deb.c") catch @panic("OOM");
         ext_mod.addCSourceFiles(.{
             .root = b.path("ext"),
-            .files = &solvext_base_sources,
+            .files = ext_srcs.items,
             .flags = ext_flags.items,
         });
 
@@ -180,16 +187,61 @@ pub fn build(b: *std.Build) void {
         if (ext_bzip2) ext_mod.linkSystemLibrary("bz2", .{});
         if (ext_zstd) ext_mod.linkSystemLibrary("zstd", .{});
 
-        const ext_lib = b.addLibrary(.{
+        ext_lib = b.addLibrary(.{
             .name = "solvext",
             .linkage = linkage,
             .root_module = ext_mod,
         });
         for (solvext_public_headers) |h| {
-            ext_lib.installHeader(b.path(b.fmt("ext/{s}", .{h})), b.fmt("solv/{s}", .{h}));
+            ext_lib.?.installHeader(b.path(b.fmt("ext/{s}", .{h})), b.fmt("solv/{s}", .{h}));
         }
-        b.installArtifact(ext_lib);
+        if (enable_debian) ext_lib.?.installHeader(b.path("ext/repo_deb.h"), "solv/repo_deb.h");
+        b.installArtifact(ext_lib.?);
     }
+
+    const test_mod = b.createModule(.{
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    test_mod.addConfigHeader(version_h);
+    test_mod.addIncludePath(b.path("src"));
+    test_mod.addIncludePath(b.path("ext"));
+    test_mod.linkLibrary(solv_lib);
+
+    var test_flags: std.ArrayList([]const u8) = .empty;
+    test_flags.append(b.allocator, "-D_FILE_OFFSET_BITS=64") catch @panic("OOM");
+    if (enable_debian) test_flags.append(b.allocator, "-DDEBIAN=1") catch @panic("OOM");
+    if (with_ext and enable_debian) test_flags.append(b.allocator, "-DENABLE_DEBIAN=1") catch @panic("OOM");
+    test_mod.addCSourceFiles(.{
+        .root = b.path("test/zig"),
+        .files = &.{"debian.c"},
+        .flags = test_flags.items,
+    });
+    if (with_ext and enable_debian) {
+        var loader_test_flags: std.ArrayList([]const u8) = .empty;
+        loader_test_flags.append(b.allocator, "-D_FILE_OFFSET_BITS=64") catch @panic("OOM");
+        loader_test_flags.append(b.allocator, "-DENABLE_DEBIAN=1") catch @panic("OOM");
+        if (ext_zlib) loader_test_flags.append(b.allocator, "-DENABLE_ZLIB_COMPRESSION=1") catch @panic("OOM");
+        if (ext_lzma) loader_test_flags.append(b.allocator, "-DENABLE_LZMA_COMPRESSION=1") catch @panic("OOM");
+        if (ext_zstd) loader_test_flags.append(b.allocator, "-DENABLE_ZSTD_COMPRESSION=1") catch @panic("OOM");
+        test_mod.addCSourceFiles(.{
+            .root = b.path("ext"),
+            .files = &.{"repo_deb.c"},
+            .flags = loader_test_flags.items,
+        });
+        if (ext_zlib) test_mod.linkSystemLibrary("z", .{});
+        if (ext_lzma) test_mod.linkSystemLibrary("lzma", .{});
+        if (ext_zstd) test_mod.linkSystemLibrary("zstd", .{});
+    }
+
+    const test_exe = b.addExecutable(.{
+        .name = "libsolv-zig-test",
+        .root_module = test_mod,
+    });
+    const test_step = b.step("test", "Run Zig build integration tests");
+    test_step.dependOn(&b.addRunArtifact(test_exe).step);
+    if (ext_lib) |lib| test_step.dependOn(&lib.step);
 
     // ---------------------------------------------------------------
     // tools/dumpsolv (optional): exercises the core library end-to-end
